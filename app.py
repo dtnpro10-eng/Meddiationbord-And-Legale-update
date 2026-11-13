@@ -107,7 +107,7 @@ def load_data():
         if col not in df.columns:
             df[col] = pd.NaT
         else:
-            df[col] = pd.to_datetime(df[col], errors='coerce')
+            df[col] = pd.to_datetime(df[col], format='mixed', errors='coerce')
             
     for col in EXTRA_FIELDS:
         if col not in df.columns:
