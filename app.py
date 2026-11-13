@@ -3,11 +3,14 @@ import pandas as pd
 from datetime import datetime
 import os
 import io
+import requests
 
 st.set_page_config(page_title="Future Life Investments - Legal & Recovery Dashboard", layout="wide")
 
 FILE_PATH = 'ALL Debtor_Report_with_WriteOff_Appended.xlsx'
 LOGO_PATH = 'logo.png'
+GSHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/10bl8L7LH9kL3bylGO0GHUpmChXAwgK0a0xXmRaq3J7o/export?format=csv"
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwiIyODN8PH9y4LEBAU29rvlSInRQDYL5XXIGLrRInJZDf2JqqVgTGNq6Y_pUdooclwCw/exec"
 
 # Metric Cards & Header CSS Styling
 st.markdown("""
@@ -86,7 +89,17 @@ EXTRA_FIELDS = [
 STATUS_OPTIONS = ["- තෝරන්න (Select) -", "Pending", "In Progress", "Done", "Rejected", "Settled"]
 
 def load_data():
-    df = pd.read_excel(FILE_PATH)
+    df = None
+    try:
+        # Load directly from Google Sheet live
+        df = pd.read_csv(GSHEET_CSV_URL)
+    except Exception:
+        if os.path.exists(FILE_PATH):
+            df = pd.read_excel(FILE_PATH)
+        else:
+            st.error("දත්ත ලබා ගැනීමේ දෝෂයක් මතු විය.")
+            st.stop()
+            
     df['Loan Account'] = df['Loan Account'].astype(str).str.strip()
     df['NIC'] = df['NIC'].astype(str).str.strip()
     
@@ -104,9 +117,19 @@ def load_data():
             
     return df
 
-if not os.path.exists(FILE_PATH):
-    st.error(f"Excel ගොනුව හමු නොවීය: {FILE_PATH}")
-    st.stop()
+def sync_to_cloud_and_local(df_to_save, updates_list=None):
+    # 1. Save local Excel copy
+    try:
+        df_to_save.to_excel(FILE_PATH, index=False)
+    except Exception:
+        pass
+        
+    # 2. Sync to Google Sheet via Webhook
+    if updates_list and len(updates_list) > 0:
+        try:
+            requests.post(WEBHOOK_URL, json={'updates': updates_list}, timeout=35)
+        except Exception as e:
+            st.warning(f"Google Sheet වෙත Sync වීමේ දෝෂයක්: {e}")
 
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
@@ -116,9 +139,9 @@ with st.sidebar:
     st.write("### ⚙️ Dashboard Controls")
     if st.button("🔄 නවතම දත්ත පූරණය කරන්න (Refresh Data)", use_container_width=True):
         st.session_state.df = load_data()
-        st.success("නවතම දත්ත Excel ගොනුවෙන් ලබා ගන්නා ලදී!")
+        st.success("නවතම දත්ත Google Sheet එකෙන් ලබා ගන්නා ලදී!")
         st.rerun()
-    st.caption("වෙනත් පරිගණකයකින් දත්ත වෙනස් කළ විට මෙම බොත්තම ඔබා නවතම දත්ත ලබා ගන්න.")
+    st.caption("🟢 Google Sheet සජීවීව සම්බන්ධ වී ඇත. ලෝකයේ ඕනෑම අයෙකු සිදු කළ වෙනස්කම් ලබා ගැනීමට මෙය ඔබන්න.")
 
 df = st.session_state.df
 
@@ -202,16 +225,25 @@ with tab2:
             if st.button("↩️ අවසන් වෙනස්කම ආපසු හරවන්න (Undo Last Action)", type="secondary", use_container_width=True):
                 try:
                     fresh_df = load_data()
+                    undo_updates = []
                     for acc, prev_data in backup['prev_state'].items():
                         m = (fresh_df['Loan Account'].str.upper() == acc.upper()) | (fresh_df['NIC'].str.upper() == acc.upper())
                         if m.any():
                             idx = fresh_df[m].index[0]
+                            fields = {}
                             for c, v in prev_data.items():
                                 fresh_df.at[idx, c] = v
-                    fresh_df.to_excel(FILE_PATH, index=False)
+                                if pd.isna(v) or v is None:
+                                    fields[c] = ""
+                                elif isinstance(v, (pd.Timestamp, datetime)):
+                                    fields[c] = v.strftime('%Y-%m-%d')
+                                else:
+                                    fields[c] = str(v)
+                            undo_updates.append({'id': str(fresh_df.at[idx, 'Loan Account']), 'fields': fields})
+                    sync_to_cloud_and_local(fresh_df, undo_updates)
                     st.session_state.df = fresh_df
                     st.session_state['last_bulk_backup'] = None
-                    st.success("✅ අවසන් වරට කළ වෙනස්කම් සාර්ථකව අවලංගු කර පෙර තිබූ තත්ත්වයට පත් කරන ලදී (Reverted Successfully)!")
+                    st.success("✅ අවසන් වරට කළ වෙනස්කම් සාර්ථකව අවලංගු කර Google Sheet එකේද Update කරන ලදී!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Undo කිරීමේදී දෝෂයක් මතු විය: {e}")
@@ -283,15 +315,23 @@ with tab2:
                         if set_status:
                             fresh_df.loc[fresh_indices, 'Legal Status'] = bulk_status
 
-                        fresh_df.to_excel(FILE_PATH, index=False)
+                        bulk_updates = []
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            f_dict = { selected_action: str(bulk_date) }
+                            if set_status:
+                                f_dict['Legal Status'] = bulk_status
+                            bulk_updates.append({'id': acc_no, 'fields': f_dict})
+
+                        sync_to_cloud_and_local(fresh_df, bulk_updates)
                         st.session_state.df = fresh_df
-                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{selected_action}] දිනය [{bulk_date}] ලෙස සාර්ථකව Update විය! (වැරදුනහොත් උඩ ඇති Undo බොත්තම ඔබන්න)")
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{selected_action}] දිනය [{bulk_date}] ලෙස සාර්ථකව Google Sheet එකට Save විය!")
 
                         st.write("##### යාවත්කාලීන වූ ගිණුම් ලැයිස්තුව:")
                         disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', selected_action, 'Legal Status']
                         st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
                     except Exception as e:
-                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+                        st.error(f"Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
     # MODE 2: CLEAR ACTION DATE
     elif bulk_mode == "🗑️ වැරදීමකින් දැමූ දිනයක් ඉවත් කිරීම (Clear / Delete Action Date)":
@@ -343,15 +383,23 @@ with tab2:
                         if reset_status_chk:
                             fresh_df.loc[fresh_indices, 'Legal Status'] = reset_status_val if reset_status_val != "- තෝරන්න (Select) -" else ""
 
-                        fresh_df.to_excel(FILE_PATH, index=False)
+                        clear_updates = []
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            f_dict = { c: "" for c in cols_to_clear }
+                            if reset_status_chk:
+                                f_dict['Legal Status'] = reset_status_val if reset_status_val != "- තෝරන්න (Select) -" else ""
+                            clear_updates.append({'id': acc_no, 'fields': f_dict})
+
+                        sync_to_cloud_and_local(fresh_df, clear_updates)
                         st.session_state.df = fresh_df
-                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{clear_action}] දිනය සාර්ථකව ඉවත් (Clear) කරන ලදී! (වැරදුනහොත් උඩ ඇති Undo ඔබන්න)")
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{clear_action}] දිනය සාර්ථකව ඉවත් කර Google Sheet එකට Save කරන ලදී!")
 
                         st.write("##### ඉවත් කළ පසු ගිණුම් වල තත්ත්වය:")
                         disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', 'Legal Status'] + [c for c in cols_to_clear if c in fresh_df.columns]
                         st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
                     except Exception as e:
-                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+                        st.error(f"Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
     # MODE 3: STATUS ONLY
     else:
@@ -389,13 +437,19 @@ with tab2:
 
                         val = only_status if only_status != "- තෝරන්න (Select) -" else ""
                         fresh_df.loc[fresh_indices, 'Legal Status'] = val
-                        fresh_df.to_excel(FILE_PATH, index=False)
+
+                        status_updates = []
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            status_updates.append({'id': acc_no, 'fields': {'Legal Status': val}})
+
+                        sync_to_cloud_and_local(fresh_df, status_updates)
                         st.session_state.df = fresh_df
-                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක Legal Status සාර්ථකව [{only_status}] ලෙස යාවත්කාලීන කරන ලදී!")
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක Legal Status සාර්ථකව [{only_status}] ලෙස Google Sheet එකට Save කරන ලදී!")
                         disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', 'Legal Status']
                         st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
                     except Exception as e:
-                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+                        st.error(f"Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
 # ================= TAB 3: SEARCH & UPDATE =================
 with tab3:
@@ -458,7 +512,7 @@ with tab3:
                             
                 btn_c1, btn_c2 = st.columns(2)
                 with btn_c1:
-                    save_btn = st.form_submit_button("💾 වෙනස්කම් Excel එකට Save කරන්න (Update Excel)", type="primary", use_container_width=True)
+                    save_btn = st.form_submit_button("💾 වෙනස්කම් Google Sheet එකට Save කරන්න", type="primary", use_container_width=True)
                 with btn_c2:
                     clear_all_dates_btn = st.form_submit_button("🗑️ Action Dates සියල්ල ඉවත් කරන්න (Clear All Dates)", use_container_width=True)
                 
@@ -475,15 +529,25 @@ with tab3:
                             
                             for col, val in updated_dates.items():
                                 fresh_df.at[target_idx, col] = pd.to_datetime(val) if val else pd.NaT
-                                
-                            fresh_df.to_excel(FILE_PATH, index=False)
+
+                            single_fields = {
+                                'Legal Status': new_status if new_status != "- තෝරන්න (Select) -" else "",
+                                'Legal Officer Name': new_officer,
+                                'Court Case No': new_case_no,
+                                'Legal Remarks': new_remarks
+                            }
+                            for col, val in updated_dates.items():
+                                single_fields[col] = str(val) if val else ""
+
+                            single_updates = [{'id': str(fresh_df.at[target_idx, 'Loan Account']), 'fields': single_fields}]
+                            sync_to_cloud_and_local(fresh_df, single_updates)
                             st.session_state.df = fresh_df
-                            st.success("✅ සාර්ථකව Excel ගොනුවේ Save විය!")
+                            st.success("✅ සාර්ථකව Google Sheet එකෙහි Save විය!")
                             st.rerun()
                         else:
-                            st.error("දත්ත යාවත්කාලීන කිරීමට අදාළ ගිණුම Excel ගොනුවේ හමු නොවීය.")
+                            st.error("දත්ත යාවත්කාලීන කිරීමට අදාළ ගිණුම හමු නොවීය.")
                     except Exception as e:
-                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e} (Excel file එක Open කර ඇත්නම් Close කරන්න)")
+                        st.error(f"Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
                 if clear_all_dates_btn:
                     try:
@@ -493,12 +557,15 @@ with tab3:
                             target_idx = fresh_df[target_mask].index[0]
                             for col in DATE_TRACKING_COLUMNS:
                                 fresh_df.at[target_idx, col] = pd.NaT
-                            fresh_df.to_excel(FILE_PATH, index=False)
+
+                            clear_fields = { col: "" for col in DATE_TRACKING_COLUMNS }
+                            clear_updates = [{'id': str(fresh_df.at[target_idx, 'Loan Account']), 'fields': clear_fields}]
+                            sync_to_cloud_and_local(fresh_df, clear_updates)
                             st.session_state.df = fresh_df
-                            st.success("✅ මෙම ගිණුමේ සියලු Action Dates සාර්ථකව ඉවත් (Clear) කරන ලදී!")
+                            st.success("✅ මෙම ගිණුමේ සියලු Action Dates සාර්ථකව ඉවත් කර Google Sheet එකෙහි Save කරන ලදී!")
                             st.rerun()
                     except Exception as e:
-                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+                        st.error(f"Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
 # ================= TAB 4: DOWNLOAD REPORTS =================
 with tab4:
