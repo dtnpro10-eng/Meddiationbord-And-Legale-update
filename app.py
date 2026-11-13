@@ -185,67 +185,217 @@ with tab1:
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df, use_container_width=True)
 
-# ================= TAB 2: BULK UPDATE =================
+# ================= TAB 2: BULK UPDATE & CORRECTIONS =================
 with tab2:
-    st.subheader("⚡ එකවර ගිණුම් රැසක් යාවත්කාලීන කිරීම (Bulk Action Update)")
-    st.info("💡 MEDIATION BORD, LOAN SETTLE, NON SETELMENT, STETMENT REQ, LEGALLY හෝ වෙනත් ඕනෑම Action එකක් එකවර ගිණුම් රැසකට යාවත්කාලීන කිරීමට මෙතැන භාවිත කරන්න.")
+    st.subheader("⚡ සමූහ යාවත්කාලීන කිරීම සහ වැරදි නිවැරදි කිරීම (Bulk Update & Corrections)")
+
+    # 1. UNDO LAST ACTION BANNER (if available)
+    if 'last_bulk_backup' in st.session_state and st.session_state['last_bulk_backup'] is not None:
+        backup = st.session_state['last_bulk_backup']
+        st.markdown(f"""
+        <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+            <b style="color: #b45309;">⚠️ මෑතකදී සිදු කළ වෙනස්කම:</b> {backup['action_desc']} (ගිණුම් {len(backup['accounts'])})
+        </div>
+        """, unsafe_allow_html=True)
+        undo_c1, undo_c2 = st.columns([1, 2])
+        with undo_c1:
+            if st.button("↩️ අවසන් වෙනස්කම ආපසු හරවන්න (Undo Last Action)", type="secondary", use_container_width=True):
+                try:
+                    fresh_df = load_data()
+                    for acc, prev_data in backup['prev_state'].items():
+                        m = (fresh_df['Loan Account'].str.upper() == acc.upper()) | (fresh_df['NIC'].str.upper() == acc.upper())
+                        if m.any():
+                            idx = fresh_df[m].index[0]
+                            for c, v in prev_data.items():
+                                fresh_df.at[idx, c] = v
+                    fresh_df.to_excel(FILE_PATH, index=False)
+                    st.session_state.df = fresh_df
+                    st.session_state['last_bulk_backup'] = None
+                    st.success("✅ අවසන් වරට කළ වෙනස්කම් සාර්ථකව අවලංගු කර පෙර තිබූ තත්ත්වයට පත් කරන ලදී (Reverted Successfully)!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Undo කිරීමේදී දෝෂයක් මතු විය: {e}")
+
+    # 2. SELECT BULK MODE
+    bulk_mode = st.radio(
+        "ක්‍රියාකාරීත්වය තෝරන්න (Select Mode):",
+        [
+            "➕ Action දිනයක් ඇතුළත් කිරීම (Set / Update Action Date)",
+            "🗑️ වැරදීමකින් දැමූ දිනයක් ඉවත් කිරීම (Clear / Delete Action Date)",
+            "🔄 Legal Status එක පමණක් යාවත්කාලීන කිරීම (Update Status Only)"
+        ],
+        horizontal=True
+    )
 
     b_col1, b_col2 = st.columns([1, 2])
-    
-    with b_col1:
-        selected_action = st.selectbox(
-            "යාවත්කාලීන කළ යුතු Action තීරුව තෝරන්න:", 
-            DATE_TRACKING_COLUMNS,
-            index=0
-        )
-        bulk_date = st.date_input(f"{selected_action} සඳහා දිනය තෝරන්න:", value=datetime.today().date())
-        
-        st.markdown("---")
-        set_status = st.checkbox("Legal Status එකත් වෙනස් කරන්නද?", value=False)
-        bulk_status = "In Progress"
-        if set_status:
-            default_stat_idx = 5 if selected_action == 'LOAN SETTLE' else 2
-            bulk_status = st.selectbox("Status එක තෝරන්න:", ["Pending", "In Progress", "Done", "Rejected", "Settled"], index=default_stat_idx)
 
     with b_col2:
         raw_input = st.text_area(
             "Loan Account අංක හෝ NIC අංක මෙතැනට Paste කරන්න (එක පේළියට එකක් හෝ Comma දමා):",
-            height=200,
+            height=220,
             placeholder="උදාහරණයක් ලෙස:\nM3V7000878954\nM1V7000921005\n978441912V\n687053079V"
         )
 
-    if st.button(f"🚀 සියලුම ගිණුම් සඳහා [{selected_action}] Update කරන්න", type="primary"):
-        if not raw_input.strip():
-            st.warning("කරුණාකර අවම වශයෙන් එක් Loan Account හෝ NIC අංකයක්වත් ඇතුළත් කරන්න.")
-        else:
-            tokens = [x.strip() for x in raw_input.replace(',', '\n').split('\n') if x.strip()]
-            tokens_upper = [t.upper() for t in tokens]
-            
-            mask = df['Loan Account'].str.upper().isin(tokens_upper) | df['NIC'].str.upper().isin(tokens_upper)
-            matched_indices = df[mask].index
-            
-            if len(matched_indices) == 0:
-                st.error("ඇතුළත් කළ කිසිදු Loan Account හෝ NIC අංකයක් Excel ගොනුවේ හමු නොවීය.")
+    # MODE 1: SET DATE
+    if bulk_mode == "➕ Action දිනයක් ඇතුළත් කිරීම (Set / Update Action Date)":
+        with b_col1:
+            selected_action = st.selectbox("යාවත්කාලීන කළ යුතු Action තීරුව:", DATE_TRACKING_COLUMNS, index=0)
+            bulk_date = st.date_input(f"{selected_action} සඳහා දිනය:", value=datetime.today().date())
+            st.markdown("---")
+            set_status = st.checkbox("Legal Status එකත් වෙනස් කරන්නද?", value=False)
+            bulk_status = "In Progress"
+            if set_status:
+                default_stat_idx = 5 if selected_action == 'LOAN SETTLE' else 2
+                bulk_status = st.selectbox("Status එක තෝරන්න:", ["Pending", "In Progress", "Done", "Rejected", "Settled"], index=default_stat_idx)
+
+        if st.button(f"🚀 සියලුම ගිණුම් සඳහා [{selected_action}] Update කරන්න", type="primary"):
+            if not raw_input.strip():
+                st.warning("කරුණාකර අවම වශයෙන් එක් Loan Account හෝ NIC අංකයක්වත් ඇතුළත් කරන්න.")
             else:
-                try:
-                    # Multi-user safety: Load latest data from disk before saving
-                    fresh_df = load_data()
-                    fresh_mask = fresh_df['Loan Account'].str.upper().isin(tokens_upper) | fresh_df['NIC'].str.upper().isin(tokens_upper)
-                    fresh_indices = fresh_df[fresh_mask].index
-                    
-                    fresh_df.loc[fresh_indices, selected_action] = pd.to_datetime(bulk_date)
-                    if set_status:
-                        fresh_df.loc[fresh_indices, 'Legal Status'] = bulk_status
-                        
-                    fresh_df.to_excel(FILE_PATH, index=False)
-                    st.session_state.df = fresh_df
-                    st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{selected_action}] දිනය [{bulk_date}] ලෙස සාර්ථකව Update කර Excel එකට Save කරන ලදී!")
-                    
-                    st.write("##### යාවත්කාලීන වූ ගිණුම් ලැයිස්තුව:")
-                    disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', selected_action, 'Legal Status']
-                    st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
-                except Exception as e:
-                    st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e} (Excel ගොනුව විවෘතව ඇත්නම් Close කරන්න)")
+                tokens = [x.strip() for x in raw_input.replace(',', '\n').split('\n') if x.strip()]
+                tokens_upper = [t.upper() for t in tokens]
+                mask = df['Loan Account'].str.upper().isin(tokens_upper) | df['NIC'].str.upper().isin(tokens_upper)
+                matched_indices = df[mask].index
+
+                if len(matched_indices) == 0:
+                    st.error("ඇතුළත් කළ කිසිදු Loan Account හෝ NIC අංකයක් Excel ගොනුවේ හමු නොවීය.")
+                else:
+                    try:
+                        fresh_df = load_data()
+                        fresh_mask = fresh_df['Loan Account'].str.upper().isin(tokens_upper) | fresh_df['NIC'].str.upper().isin(tokens_upper)
+                        fresh_indices = fresh_df[fresh_mask].index
+
+                        # Save undo backup
+                        backup_records = {}
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            backup_records[acc_no] = {
+                                selected_action: fresh_df.at[idx, selected_action],
+                                'Legal Status': fresh_df.at[idx, 'Legal Status']
+                            }
+                        st.session_state['last_bulk_backup'] = {
+                            'action_desc': f"[{selected_action}] දිනය [{bulk_date}] ලෙස Update කිරීම",
+                            'accounts': list(backup_records.keys()),
+                            'prev_state': backup_records
+                        }
+
+                        fresh_df.loc[fresh_indices, selected_action] = pd.to_datetime(bulk_date)
+                        if set_status:
+                            fresh_df.loc[fresh_indices, 'Legal Status'] = bulk_status
+
+                        fresh_df.to_excel(FILE_PATH, index=False)
+                        st.session_state.df = fresh_df
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{selected_action}] දිනය [{bulk_date}] ලෙස සාර්ථකව Update විය! (වැරදුනහොත් උඩ ඇති Undo බොත්තම ඔබන්න)")
+
+                        st.write("##### යාවත්කාලීන වූ ගිණුම් ලැයිස්තුව:")
+                        disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', selected_action, 'Legal Status']
+                        st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+
+    # MODE 2: CLEAR ACTION DATE
+    elif bulk_mode == "🗑️ වැරදීමකින් දැමූ දිනයක් ඉවත් කිරීම (Clear / Delete Action Date)":
+        with b_col1:
+            clear_action = st.selectbox("ඉවත් කළ යුතු Action තීරුව තෝරන්න:", ["සියලු Actions (All Actions)"] + DATE_TRACKING_COLUMNS, index=0)
+            st.markdown("---")
+            reset_status_chk = st.checkbox("Legal Status එකත් වෙනස් / හිස් කරන්නද?", value=False)
+            reset_status_val = "- තෝරන්න (Select) -"
+            if reset_status_chk:
+                reset_status_val = st.selectbox("Status එක මාරු කළ යුතු අගය:", STATUS_OPTIONS, index=0)
+
+        if st.button(f"🗑️ තෝරාගත් ගිණුම් වලින් [{clear_action}] දිනය ඉවත් කරන්න (Clear Date)", type="primary"):
+            if not raw_input.strip():
+                st.warning("කරුණාකර අවම වශයෙන් එක් Loan Account හෝ NIC අංකයක්වත් ඇතුළත් කරන්න.")
+            else:
+                tokens = [x.strip() for x in raw_input.replace(',', '\n').split('\n') if x.strip()]
+                tokens_upper = [t.upper() for t in tokens]
+                mask = df['Loan Account'].str.upper().isin(tokens_upper) | df['NIC'].str.upper().isin(tokens_upper)
+                matched_indices = df[mask].index
+
+                if len(matched_indices) == 0:
+                    st.error("ඇතුළත් කළ කිසිදු Loan Account හෝ NIC අංකයක් Excel ගොනුවේ හමු නොවීය.")
+                else:
+                    try:
+                        fresh_df = load_data()
+                        fresh_mask = fresh_df['Loan Account'].str.upper().isin(tokens_upper) | fresh_df['NIC'].str.upper().isin(tokens_upper)
+                        fresh_indices = fresh_df[fresh_mask].index
+
+                        cols_to_clear = DATE_TRACKING_COLUMNS if clear_action == "සියලු Actions (All Actions)" else [clear_action]
+
+                        # Save undo backup
+                        backup_records = {}
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            rec = {'Legal Status': fresh_df.at[idx, 'Legal Status']}
+                            for c in cols_to_clear:
+                                rec[c] = fresh_df.at[idx, c]
+                            backup_records[acc_no] = rec
+
+                        st.session_state['last_bulk_backup'] = {
+                            'action_desc': f"[{clear_action}] දිනයන් ඉවත් කිරීම (Clear)",
+                            'accounts': list(backup_records.keys()),
+                            'prev_state': backup_records
+                        }
+
+                        for c in cols_to_clear:
+                            fresh_df.loc[fresh_indices, c] = pd.NaT
+
+                        if reset_status_chk:
+                            fresh_df.loc[fresh_indices, 'Legal Status'] = reset_status_val if reset_status_val != "- තෝරන්න (Select) -" else ""
+
+                        fresh_df.to_excel(FILE_PATH, index=False)
+                        st.session_state.df = fresh_df
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක [{clear_action}] දිනය සාර්ථකව ඉවත් (Clear) කරන ලදී! (වැරදුනහොත් උඩ ඇති Undo ඔබන්න)")
+
+                        st.write("##### ඉවත් කළ පසු ගිණුම් වල තත්ත්වය:")
+                        disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', 'Legal Status'] + [c for c in cols_to_clear if c in fresh_df.columns]
+                        st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
+
+    # MODE 3: STATUS ONLY
+    else:
+        with b_col1:
+            only_status = st.selectbox("මාරු කළ යුතු Legal Status අගය:", STATUS_OPTIONS, index=1)
+            st.caption("Action දිනයන් වෙනස් නොවේ. Legal Status පමණක් මාරු වේ.")
+
+        if st.button(f"🔄 තෝරාගත් ගිණුම් වල Status එක [{only_status}] ලෙස මාරු කරන්න", type="primary"):
+            if not raw_input.strip():
+                st.warning("කරුණාකර අවම වශයෙන් එක් Loan Account හෝ NIC අංකයක්වත් ඇතුළත් කරන්න.")
+            else:
+                tokens = [x.strip() for x in raw_input.replace(',', '\n').split('\n') if x.strip()]
+                tokens_upper = [t.upper() for t in tokens]
+                mask = df['Loan Account'].str.upper().isin(tokens_upper) | df['NIC'].str.upper().isin(tokens_upper)
+                matched_indices = df[mask].index
+
+                if len(matched_indices) == 0:
+                    st.error("ඇතුළත් කළ කිසිදු Loan Account හෝ NIC අංකයක් Excel ගොනුවේ හමු නොවීය.")
+                else:
+                    try:
+                        fresh_df = load_data()
+                        fresh_mask = fresh_df['Loan Account'].str.upper().isin(tokens_upper) | fresh_df['NIC'].str.upper().isin(tokens_upper)
+                        fresh_indices = fresh_df[fresh_mask].index
+
+                        backup_records = {}
+                        for idx in fresh_indices:
+                            acc_no = str(fresh_df.at[idx, 'Loan Account'])
+                            backup_records[acc_no] = {'Legal Status': fresh_df.at[idx, 'Legal Status']}
+
+                        st.session_state['last_bulk_backup'] = {
+                            'action_desc': f"Legal Status [{only_status}] ලෙස මාරු කිරීම",
+                            'accounts': list(backup_records.keys()),
+                            'prev_state': backup_records
+                        }
+
+                        val = only_status if only_status != "- තෝරන්න (Select) -" else ""
+                        fresh_df.loc[fresh_indices, 'Legal Status'] = val
+                        fresh_df.to_excel(FILE_PATH, index=False)
+                        st.session_state.df = fresh_df
+                        st.success(f"✅ ගිණුම් {len(fresh_indices)} ක Legal Status සාර්ථකව [{only_status}] ලෙස යාවත්කාලීන කරන ලදී!")
+                        disp_cols = ['Branch', 'Loan Officer', 'Client Name', 'NIC', 'Loan Account', 'Legal Status']
+                        st.dataframe(fresh_df.loc[fresh_indices, disp_cols], use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
 # ================= TAB 3: SEARCH & UPDATE =================
 with tab3:
@@ -287,6 +437,7 @@ with tab3:
                 new_remarks = st.text_area("සටහන් (Notes / Remarks)", value=str(record.get('Legal Remarks', '')))
                 
                 st.write("### 2. අදාළ දිනයන් (Action Dates):")
+                st.caption("💡 දිනයක් ඉවත් කිරීමට අවශ්‍ය නම් අදාළ Checkbox එක Uncheck (ටික් එක අයින්) කර Save කරන්න.")
                 date_input_cols = st.columns(2)
                 updated_dates = {}
                 
@@ -305,7 +456,11 @@ with tab3:
                         else:
                             updated_dates[col] = None
                             
-                save_btn = st.form_submit_button("💾 වෙනස්කම් Excel එකට Save කරන්න (Update Excel)")
+                btn_c1, btn_c2 = st.columns(2)
+                with btn_c1:
+                    save_btn = st.form_submit_button("💾 වෙනස්කම් Excel එකට Save කරන්න (Update Excel)", type="primary", use_container_width=True)
+                with btn_c2:
+                    clear_all_dates_btn = st.form_submit_button("🗑️ Action Dates සියල්ල ඉවත් කරන්න (Clear All Dates)", use_container_width=True)
                 
                 if save_btn:
                     try:
@@ -324,10 +479,26 @@ with tab3:
                             fresh_df.to_excel(FILE_PATH, index=False)
                             st.session_state.df = fresh_df
                             st.success("✅ සාර්ථකව Excel ගොනුවේ Save විය!")
+                            st.rerun()
                         else:
                             st.error("දත්ත යාවත්කාලීන කිරීමට අදාළ ගිණුම Excel ගොනුවේ හමු නොවීය.")
                     except Exception as e:
                         st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e} (Excel file එක Open කර ඇත්නම් Close කරන්න)")
+
+                if clear_all_dates_btn:
+                    try:
+                        fresh_df = load_data()
+                        target_mask = (fresh_df['Loan Account'].str.upper() == str(record['Loan Account']).upper()) | (fresh_df['NIC'].str.upper() == str(record['NIC']).upper())
+                        if target_mask.any():
+                            target_idx = fresh_df[target_mask].index[0]
+                            for col in DATE_TRACKING_COLUMNS:
+                                fresh_df.at[target_idx, col] = pd.NaT
+                            fresh_df.to_excel(FILE_PATH, index=False)
+                            st.session_state.df = fresh_df
+                            st.success("✅ මෙම ගිණුමේ සියලු Action Dates සාර්ථකව ඉවත් (Clear) කරන ලදී!")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Excel එක Save කිරීමේදී දෝෂයක් මතු විය: {e}")
 
 # ================= TAB 4: DOWNLOAD REPORTS =================
 with tab4:
