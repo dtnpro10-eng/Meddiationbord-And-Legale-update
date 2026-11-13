@@ -10,7 +10,7 @@ st.set_page_config(page_title="Future Life Investments - Legal & Recovery Dashbo
 FILE_PATH = 'ALL Debtor_Report_with_WriteOff_Appended.xlsx'
 LOGO_PATH = 'logo.png'
 GSHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/10bl8L7LH9kL3bylGO0GHUpmChXAwgK0a0xXmRaq3J7o/export?format=csv"
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwiIyODN8PH9y4LEBAU29rvlSInRQDYL5XXIGLrRInJZDf2JqqVgTGNq6Y_pUdooclwCw/exec"
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyD_Y9nJZZTs4mKJjrB2lAtK0wcE4V7FqxDciehEKBSUnpDj59Mt5eQSNNj6hM1PqjwgA/exec"
 
 # Metric Cards & Header CSS Styling
 st.markdown("""
@@ -127,7 +127,10 @@ def sync_to_cloud_and_local(df_to_save, updates_list=None):
     # 2. Sync to Google Sheet via Webhook
     if updates_list and len(updates_list) > 0:
         try:
-            requests.post(WEBHOOK_URL, json={'updates': updates_list}, timeout=35)
+            with st.spinner("Google Sheet එකට Save කරමින් පවතී..."):
+                r = requests.post(WEBHOOK_URL, json={'updates': updates_list}, timeout=45)
+                if r.status_code != 200:
+                    st.warning(f"Google Sheet වෙත Sync වීමේ දෝෂයක් (Code {r.status_code})")
         except Exception as e:
             st.warning(f"Google Sheet වෙත Sync වීමේ දෝෂයක්: {e}")
 
