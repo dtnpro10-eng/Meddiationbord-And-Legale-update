@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loan Officer Legal & Recovery Tracking Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for visual data representation -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans Sinhala', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#082f49',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .badge-count {
+      transition: all 0.2s ease;
+    }
+    .badge-count:hover {
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Top Header Navigation -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Legal & Recovery Tracking System</h1>
+          <p class="text-xs text-slate-500 font-medium">Loan Officer Case Status & Google Sheet Sync</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button id="btnOpenConfig" class="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm">
+          <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          Google Sheet Setup
+        </button>
+
+        <button id="btnSyncNow" class="inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition shadow-sm">
+          <svg id="syncIcon" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Sync Data
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+    
+    <!-- Top KPI Status Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+      <!-- Total Records -->
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm col-span-2 sm:col-span-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">මුළු ගනුදෙනුකරුවන්</p>
+            <h3 id="statTotalAccounts" class="text-2xl font-black text-slate-900 mt-0.5">0</h3>
+          </div>
+          <span class="p-2.5 rounded-lg bg-sky-50 text-sky-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          </span>
+        </div>
+      </div>
+
+      <!-- MEDIATION BORD -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-amber-500">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="MEDIATION BORD">MEDIATION BORD</p>
+        <p id="kpiMediation" class="text-xl font-bold text-amber-600 mt-1">0</p>
+      </div>
+
+      <!-- NON SETTLEMENT -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-rose-500">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="NON SETTLEMENT">NON SETELMENT</p>
+        <p id="kpiNonSettlement" class="text-xl font-bold text-rose-600 mt-1">0</p>
+      </div>
+
+      <!-- STETMENT REQ -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-blue-500">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="STETMENT REQ">STETMENT REQ</p>
+        <p id="kpiStatementReq" class="text-xl font-bold text-blue-600 mt-1">0</p>
+      </div>
+
+      <!-- LEGALLY -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="LEGALLY">LEGALLY</p>
+        <p id="kpiLegally" class="text-xl font-bold text-purple-600 mt-1">0</p>
+      </div>
+
+      <!-- PENDING MEDIATION -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-orange-400">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="PENDING MEDIATION BORD">PEND. MEDIATION</p>
+        <p id="kpiPendingMediation" class="text-xl font-bold text-orange-500 mt-1">0</p>
+      </div>
+
+      <!-- PENDING LEGALLY -->
+      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-pink-500">
+        <p class="text-[11px] font-semibold text-slate-500 truncate" title="PENDING legally">PEND. LEGALLY</p>
+        <p id="kpiPendingLegally" class="text-xl font-bold text-pink-600 mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- Action Center: Search & Date Update Workstation -->
+    <section class="bg-gradient-to-r from-sky-900 to-indigo-900 text-white rounded-2xl p-5 mb-8 shadow-lg">
+      <div class="max-w-4xl mx-auto">
+        <div class="text-center sm:text-left mb-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div>
+            <h2 class="text-xl font-bold tracking-tight">Search & Record Date Updates</h2>
+            <p class="text-sm text-sky-200">NIC හෝ Loan Account අංකය ඇතුළත් කර අදාළ දින සටහන් කර Sheet එකට යවන්න</p>
+          </div>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-sky-800/80 text-sky-200 border border-sky-600">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span> Google Sheet Live Update
+          </span>
+        </div>
+
+        <!-- Search Input Bar -->
+        <div class="relative">
+          <div class="flex items-center bg-white rounded-xl overflow-hidden shadow-inner p-1.5 focus-within:ring-4 focus-within:ring-sky-400">
+            <div class="pl-3 pr-2 text-slate-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <input 
+              type="text" 
+              id="txtSearchInput" 
+              placeholder="Enter NIC Number or Loan Account No (e.g. 199012345678 or LN-2023-01)..." 
+              class="w-full py-2 px-2 text-slate-800 text-sm font-medium focus:outline-none placeholder:text-slate-400"
+              autocomplete="off"
+            >
+            <button id="btnSearch" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg transition duration-150 flex items-center shadow-md">
+              <span>Search</span>
+            </button>
+          </div>
+
+          <!-- Auto-suggestions dropdown -->
+          <div id="searchSuggestions" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 max-h-60 overflow-y-auto divide-y divide-slate-100"></div>
+        </div>
+
+        <!-- Selected Loan Record Card & Date Updating Form -->
+        <div id="editSection" class="hidden mt-5 bg-white text-slate-800 rounded-xl p-5 shadow-md border border-slate-200 transition-all">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 mb-4 border-b border-slate-100">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span id="cardAccNo" class="text-sm font-bold bg-sky-100 text-sky-800 px-2.5 py-0.5 rounded-md">ACC: -</span>
+                <span id="cardNic" class="text-xs font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">NIC: -</span>
+              </div>
+              <h3 id="cardCustomerName" class="text-lg font-bold text-slate-900 mt-1">Customer Name</h3>
+            </div>
+            <div class="mt-2 sm:mt-0 text-left sm:text-right">
+              <span class="text-xs text-slate-400 block">Assigned Loan Officer</span>
+              <span id="cardOfficerName" class="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200 inline-block mt-0.5">Officer Name</span>
+            </div>
+          </div>
+
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center">
+            <svg class="w-4 h-4 mr-1 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            ක්‍රියාමාර්ග දිනයන් සටහන් කිරීම / Action Dates:
+          </div>
+
+          <form id="frmUpdateDates" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+            <!-- 1. MEDIATION BORD -->
+            <div class="bg-amber-50/60 p-2.5 rounded-lg border border-amber-200/80">
+              <label class="block text-xs font-bold text-amber-900 mb-1">MEDIATION BORD Date</label>
+              <input type="date" id="dateMediation" class="w-full text-xs font-medium border border-amber-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-amber-400 focus:outline-none">
+            </div>
+
+            <!-- 2. NON SETELMENT -->
+            <div class="bg-rose-50/60 p-2.5 rounded-lg border border-rose-200/80">
+              <label class="block text-xs font-bold text-rose-900 mb-1">NON SETELMENT Date</label>
+              <input type="date" id="dateNonSettlement" class="w-full text-xs font-medium border border-rose-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-rose-400 focus:outline-none">
+            </div>
+
+            <!-- 3. STETMENT REQ -->
+            <div class="bg-blue-50/60 p-2.5 rounded-lg border border-blue-200/80">
+              <label class="block text-xs font-bold text-blue-900 mb-1">STETMENT REQ Date</label>
+              <input type="date" id="dateStatementReq" class="w-full text-xs font-medium border border-blue-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+
+            <!-- 4. LEGALLY -->
+            <div class="bg-purple-50/60 p-2.5 rounded-lg border border-purple-200/80">
+              <label class="block text-xs font-bold text-purple-900 mb-1">LEGALLY Action Date</label>
+              <input type="date" id="dateLegally" class="w-full text-xs font-medium border border-purple-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-purple-400 focus:outline-none">
+            </div>
+
+            <!-- 5. PENDING MEDIATION BORD -->
+            <div class="bg-orange-50/60 p-2.5 rounded-lg border border-orange-200/80">
+              <label class="block text-xs font-bold text-orange-900 mb-1">PENDING MEDIATION BORD</label>
+              <input type="date" id="datePendingMediation" class="w-full text-xs font-medium border border-orange-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-orange-400 focus:outline-none">
+            </div>
+
+            <!-- 6. PENDING legally -->
+            <div class="bg-pink-50/60 p-2.5 rounded-lg border border-pink-200/80">
+              <label class="block text-xs font-bold text-pink-900 mb-1">PENDING LEGALLY Date</label>
+              <input type="date" id="datePendingLegally" class="w-full text-xs font-medium border border-pink-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-pink-400 focus:outline-none">
+            </div>
+
+            <!-- 7. LOD REQ -->
+            <div class="bg-teal-50/60 p-2.5 rounded-lg border border-teal-200/80">
+              <label class="block text-xs font-bold text-teal-900 mb-1">LOD REQ (Demand Date)</label>
+              <input type="date" id="dateLodReq" class="w-full text-xs font-medium border border-teal-300 rounded px-2.5 py-1.5 bg-white focus:ring-2 focus:ring-teal-400 focus:outline-none">
+            </div>
+
+            <!-- Submit Action Container -->
+            <div class="flex items-end justify-between sm:col-span-2 md:col-span-1 lg:col-span-1">
+              <button 
+                type="button" 
+                id="btnSaveRecord" 
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 px-4 rounded-lg transition duration-200 shadow-md flex items-center justify-center space-x-1.5"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <span>Save to Sheet</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="saveFeedback" class="hidden mt-3 p-2.5 rounded-lg text-xs font-medium flex items-center"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loan Officer Summary Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      
+      <!-- Officers Summary Table (2 columns on lg) -->
+      <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-3 border-b border-slate-100 gap-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">Loan Officer Summary Counts</h2>
+              <p class="text-xs text-slate-500 font-medium">නිලධාරී අනුව එක් එක් අංශයෙන් දමා ඇති මුළු සංඛ්‍යාවන්</p>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+              <label for="officerFilter" class="text-xs font-medium text-slate-500">Filter Officer:</label>
+              <select id="officerFilter" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <option value="ALL">All Officers (සියලු නිලධාරීන්)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Loan Officer</th>
+                  <th class="py-3 px-2 text-center text-amber-700 bg-amber-50/50">Mediation</th>
+                  <th class="py-3 px-2 text-center text-rose-700 bg-rose-50/50">Non Setl.</th>
+                  <th class="py-3 px-2 text-center text-blue-700 bg-blue-50/50">Stet. Req</th>
+                  <th class="py-3 px-2 text-center text-purple-700 bg-purple-50/50">Legally</th>
+                  <th class="py-3 px-2 text-center text-orange-700">Pend. Med.</th>
+                  <th class="py-3 px-2 text-center text-pink-700">Pend. Leg.</th>
+                  <th class="py-3 px-2 text-center text-teal-700">LOD Req</th>
+                  <th class="py-3 px-3 text-center bg-slate-100">Total Cases</th>
+                </tr>
+              </thead>
+              <tbody id="officersTableBody" class="divide-y divide-slate-100 font-medium">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span>* දින ඇතුළත් කර ඇති ප්‍රමාණය අනුව වර්ගීකරණය වේ.</span>
+          <span id="officerCountBadge" class="font-semibold text-slate-700">Active Officers: 0</span>
+        </div>
+      </div>
+
+      <!-- Chart Visualization Column -->
+      <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col">
+        <h3 class="text-base font-bold text-slate-900 mb-1">Status Distribution Chart</h3>
+        <p class="text-xs text-slate-500 mb-4">සමස්ත ක්‍රියාමාර්ග වර්ගීකරණ ප්‍රස්ථාරය</p>
+        <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Accounts Table with Search & Status Badges -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">All Account Records (සම්පූර්ණ ලැයිස්තුව)</h3>
+          <p class="text-xs text-slate-500">ඕනෑම පේළියක "Edit" ක්ලික් කර දින යාවත්කාලීන කළ හැක</p>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <div class="relative w-48 sm:w-64">
+            <input 
+              type="text" 
+              id="txtFilterTable" 
+              placeholder="Filter by Name, NIC, Acc..." 
+              class="w-full text-xs py-2 pl-8 pr-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs whitespace-nowrap">
+          <thead class="bg-slate-50 text-slate-600 uppercase font-semibold border-b border-slate-200">
+            <tr>
+              <th class="py-3 px-3">Loan Account</th>
+              <th class="py-3 px-3">NIC Number</th>
+              <th class="py-3 px-4">Customer Name</th>
+              <th class="py-3 px-3">Officer</th>
+              <th class="py-3 px-2 text-center text-amber-700">Mediation</th>
+              <th class="py-3 px-2 text-center text-rose-700">Non Setl.</th>
+              <th class="py-3 px-2 text-center text-blue-700">Stet. Req</th>
+              <th class="py-3 px-2 text-center text-purple-700">Legally</th>
+              <th class="py-3 px-2 text-center text-orange-700">Pend. Med.</th>
+              <th class="py-3 px-2 text-center text-pink-700">Pend. Leg.</th>
+              <th class="py-3 px-2 text-center text-teal-700">LOD Req</th>
+              <th class="py-3 px-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fullDataTableBody" class="divide-y divide-slate-100 font-medium">
+            <!-- Rendered dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Table Pagination/Info footer -->
+      <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <span id="lblTableCounter">Showing 0 records</span>
+        <span>Connected to Google Sheet ID: <code class="bg-slate-200 px-1 py-0.5 rounded text-[11px] font-mono">1npUNtFD...4vcFZE</code></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Configuration Modal (Google Sheets Setup & Apps Script Code) -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Google Sheet Connection Settings</h3>
+            <p class="text-xs text-slate-500">සෘජුවම Google Sheet එකට සම්බන්ධ වී Update වීමේ සැකසුම්</p>
+          </div>
+        </div>
+        <button id="btnCloseConfig" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5 text-xs text-slate-600">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Target Google Sheet ID:</label>
+          <input 
+            type="text" 
+            id="cfgSheetId" 
+            value="1npUNtFDtBimMH9iXs6Tkk9AWptWPLQgga5R6K4vcFZE"
+            class="w-full text-xs font-mono border border-slate-300 rounded-lg p-2.5 bg-slate-50"
+            readonly
+          >
+          <p class="text-[11px] text-slate-500 mt-1">ඔබ ලබාදුන් Google Sheet එකෙහි ID අංකය.</p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Google Apps Script Web App URL (for 2-Way Sync):</label>
+          <input 
+            type="text" 
+            id="cfgWebAppUrl" 
+            placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+            class="w-full text-xs font-mono border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          >
+          <p class="text-[11px] text-slate-500 mt-1">
+            Google Sheet එකට සෘජුව Update යැවීමට පහත පියවර අනුගමනය කර Apps Script Web App එකක් සාදා එහි URL එක මෙහි paste කරන්න:
+          </p>
+        </div>
+
+        <!-- Setup Instructions in Sinhala -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2 text-amber-900">
+          <p class="font-bold text-xs flex items-center">
+            <svg class="w-4 h-4 mr-1.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Google Sheet එක සමඟ 100% ක්‍රියාත්මක වන පරිදි සැකසීමේ පියවර:
+          </p>
+          <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-amber-800 leading-relaxed pl-1">
+            <li>ඔබේ Google Sheet එක විවෘත කර මෙනුවේ <b>Extensions &gt; Apps Script</b> වෙත යන්න.</li>
+            <li>එහි ඇති පැරණි කේත සියල්ල මකා දමා පහත ඇති අලුත් <b>Apps Script Code</b> එක Paste කර Save (Ctrl+S) කරන්න.</li>
+            <li>ඉහළ දකුණු කෙළවරේ <b>Deploy &gt; Manage deployments</b> (හෝ New deployment) ක්ලික් කරන්න.</li>
+            <li>පැන්සල් අයිකනය (Edit) ඔබා, <b>Version: "New version"</b> තෝරන්න. (★ ඉතා වැදගත්)</li>
+            <li><b>Execute as:</b> "Me" සහ <b>Who has access:</b> "<b>Anyone</b>" ලෙස තබා <b>Deploy</b> කරන්න.</li>
+            <li>ලැබෙන <b>Web App URL</b> එක Copy කර ඉහත කොටුවට දමා <b>Test Connection</b> ඔබන්න.</li>
+          </ol>
+        </div>
+
+        <!-- Script Code Copy Area -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="font-bold text-slate-700">Apps Script Code (Dual Sync & Exact Sheet ID):</span>
+            <button id="btnCopyScript" class="text-sky-600 hover:text-sky-700 font-bold text-xs flex items-center">
+              <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+              Copy Code
+            </button>
+          </div>
+          <pre id="scriptCodeBlock" class="bg-slate-900 text-slate-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto max-h-48 select-all leading-normal">
+// Google Apps Script for Direct 2-Way Sync
+var SHEET_ID = '1npUNtFDtBimMH9iXs6Tkk9AWptWPLQgga5R6K4vcFZE';
+
+function getTargetSheet() {
+  try {
+    return SpreadsheetApp.openById(SHEET_ID).getSheets()[0];
+  } catch(e) {
+    return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  }
+}
+
+function doGet(e) {
+  try {
+    var params = e ? e.parameter : {};
+    var sheet = getTargetSheet();
+    
+    // Connection Test
+    if (params && params.action === 'test') {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: 'success',
+        sheetName: sheet.getName(),
+        rowsCount: sheet.getLastRow(),
+        message: 'Connected successfully to Google Sheet!'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Direct Update via GET (Bypasses CORS restrictions)
+    if (params && params.action === 'update') {
+      var result = applyUpdate(sheet, params);
+      return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Default: Fetch all records for Dashboard
+    var data = sheet.getDataRange().getValues();
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    var sheet = getTargetSheet();
+    var payload = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch(ex) {
+        payload = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      payload = e.parameter;
+    }
+    
+    var result = applyUpdate(sheet, payload);
+    return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function applyUpdate(sheet, payload) {
+  var data = sheet.getDataRange().getValues();
+  if (data.length === 0) return { status: 'error', message: 'Sheet is empty' };
+  
+  // Find header row (check first 5 rows)
+  var headerRowIdx = 0;
+  for (var r = 0; r < Math.min(data.length, 5); r++) {
+    var rowText = data[r].join(' ').toLowerCase();
+    if (rowText.indexOf('loan') !== -1 || rowText.indexOf('acc') !== -1 || rowText.indexOf('nic') !== -1) {
+      headerRowIdx = r;
+      break;
+    }
+  }
+  
+  var headers = data[headerRowIdx];
+  var accCol = -1, nicCol = -1;
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c]).toLowerCase();
+    if (/loan|account|acc|facility|contract|a\/c/i.test(h) && accCol === -1) accCol = c;
+    if (/nic|identity|id/i.test(h) && nicCol === -1) nicCol = c;
+  }
+  
+  var cleanAcc = String(payload.accountNo || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  var cleanNic = String(payload.nic || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  
+  var targetRow = -1;
+  for (var i = headerRowIdx + 1; i < data.length; i++) {
+    var sAcc = accCol !== -1 ? String(data[i][accCol]).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+    var sNic = nicCol !== -1 ? String(data[i][nicCol]).replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : '';
+    
+    if ((cleanAcc && sAcc === cleanAcc) || (cleanNic && sNic === cleanNic)) {
+      targetRow = i + 1; // 1-based index
+      break;
+    }
+  }
+  
+  if (targetRow === -1) {
+    return { status: 'error', message: 'Account or NIC not found in Sheet: ' + (payload.accountNo || payload.nic) };
+  }
+  
+  // Date Fields mapping
+  var fieldMap = {
+    'MEDIATION BORD': payload.mediationDate,
+    'NON SETELMENT': payload.nonSettlementDate,
+    'STETMENT REQ': payload.statementReqDate,
+    'LEGALLY': payload.legallyDate,
+    'PENDING MEDIATION BORD': payload.pendingMediationDate,
+    'PENDING legally': payload.pendingLegallyDate,
+    'LOD REQ': payload.lodReqDate
+  };
+  
+  var updatedCols = [];
+  for (var col = 0; col < headers.length; col++) {
+    var hName = String(headers[col]).trim().toUpperCase();
+    for (var key in fieldMap) {
+      if (hName.indexOf(key) !== -1 && fieldMap[key] !== undefined && fieldMap[key] !== "") {
+        sheet.getRange(targetRow, col + 1).setValue(fieldMap[key]);
+        updatedCols.push(key);
+      }
+    }
+  }
+  
+  return { status: 'success', updatedRow: targetRow, updatedColumns: updatedCols };
+}
+          </pre>
+        </div>
+
+        <div id="testConnectionStatus" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <button id="btnTestConnection" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-4 py-2 rounded-lg border border-indigo-200 transition">
+          Test Connection
+        </button>
+        <div class="flex items-center space-x-2">
+          <button id="btnResetDemo" class="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2">Load Demo Data</button>
+          <button id="btnSaveConfig" class="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-5 py-2 rounded-lg transition shadow-md">
+            Save Settings & Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Initial Seed Data aligned with user's Google Sheet structure
+    const INITIAL_RECORDS = [
+      {
+        accountNo: "LN-2023-0101",
+        nic: "198823401923",
+        customerName: "K. G. Sunil Perera",
+        officer: "Kamal Wickramasinghe",
+        mediationDate: "2024-01-15",
+        nonSettlementDate: "",
+        statementReqDate: "2024-02-10",
+        legallyDate: "",
+        pendingMediationDate: "",
+        pendingLegallyDate: "",
+        lodReqDate: "2023-12-05"
+      },
+      {
+        accountNo: "LN-2023-0102",
+        nic: "199256708912",
+        customerName: "M. D. Nimali Fernando",
+        officer: "Kamal Wickramasinghe",
+        mediationDate: "2024-02-01",
+        nonSettlementDate: "2024-02-28",
+        statementReqDate: "2024-03-05",
+        legallyDate: "2024-03-20",
+        pendingMediationDate: "",
+        pendingLegallyDate: "",
+        lodReqDate: "2024-01-10"
+      },
+      {
+        accountNo: "LN-2023-0103",
+        nic: "197934201123",
+        customerName: "A. B. Chaminda Silva",
+        officer: "Roshan Priyankara",
+        mediationDate: "",
+        nonSettlementDate: "",
+        statementReqDate: "2024-01-20",
+        legallyDate: "",
+        pendingMediationDate: "2024-02-15",
+        pendingLegallyDate: "",
+        lodReqDate: "2024-01-05"
+      },
+      {
+        accountNo: "LN-2023-0104",
+        nic: "199411209845",
+        customerName: "T. M. Ruwan Bandara",
+        officer: "Roshan Priyankara",
+        mediationDate: "",
+        nonSettlementDate: "",
+        statementReqDate: "",
+        legallyDate: "",
+        pendingMediationDate: "",
+        pendingLegallyDate: "2024-03-01",
+        lodReqDate: "2024-02-10"
+      },
+      {
+        accountNo: "LN-2023-0105",
+        nic: "198544302911",
+        customerName: "S. K. Priyantha Kumara",
+        officer: "Anura Jayatissa",
+        mediationDate: "2024-01-10",
+        nonSettlementDate: "2024-01-30",
+        statementReqDate: "2024-02-05",
+        legallyDate: "",
+        pendingMediationDate: "",
+        pendingLegallyDate: "2024-02-22",
+        lodReqDate: "2023-11-20"
+      },
+      {
+        accountNo: "LN-2023-0106",
+        nic: "199088701234",
+        customerName: "H. L. Sandya Kumari",
+        officer: "Anura Jayatissa",
+        mediationDate: "2024-02-12",
+        nonSettlementDate: "",
+        statementReqDate: "",
+        legallyDate: "",
+        pendingMediationDate: "",
+        pendingLegallyDate: "",
+        lodReqDate: "2024-01-15"
+      },
+      {
+        accountNo: "LN-2023-0107",
+        nic: "198129003884",
+        customerName: "W. M. Jayalath Wanninayake",
+        officer: "Dinesh Madushanka",
+        mediationDate: "2024-03-01",
+        nonSettlementDate: "2024-03-18",
+        statementReqDate: "2024-03-25",
+        legallyDate: "2024-04-02",
+        pendingMediationDate: "",
+        pendingLegallyDate: "",
+        lodReqDate: "2024-02-01"
+      },
+      {
+        accountNo: "LN-2023-0108",
+        nic: "199577809931",
+        customerName: "P. R. Dilhani Jayawardena",
+        officer: "Dinesh Madushanka",
+        mediationDate: "",
+        nonSettlementDate: "",
+        statementReqDate: "2024-02-14",
+        legallyDate: "",
+        pendingMediationDate: "2024-03-10",
+        pendingLegallyDate: "",
+        lodReqDate: "2024-01-18"
+      }
+    ];
+
+    // State Variables
+    let recordsData = [...INITIAL_RECORDS];
+    let selectedRecord = null;
+    let statusChartInstance = null;
+    let webAppUrl = "";
+
+    // DOM Elements
+    const txtSearchInput = document.getElementById('txtSearchInput');
+    const btnSearch = document.getElementById('btnSearch');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const editSection = document.getElementById('editSection');
+    const cardAccNo = document.getElementById('cardAccNo');
+    const cardNic = document.getElementById('cardNic');
+    const cardCustomerName = document.getElementById('cardCustomerName');
+    const cardOfficerName = document.getElementById('cardOfficerName');
+
+    const dateMediation = document.getElementById('dateMediation');
+    const dateNonSettlement = document.getElementById('dateNonSettlement');
+    const dateStatementReq = document.getElementById('dateStatementReq');
+    const dateLegally = document.getElementById('dateLegally');
+    const datePendingMediation = document.getElementById('datePendingMediation');
+    const datePendingLegally = document.getElementById('datePendingLegally');
+    const dateLodReq = document.getElementById('dateLodReq');
+
+    const btnSaveRecord = document.getElementById('btnSaveRecord');
+    const saveFeedback = document.getElementById('saveFeedback');
+
+    const officersTableBody = document.getElementById('officersTableBody');
+    const officerFilter = document.getElementById('officerFilter');
+    const officerCountBadge = document.getElementById('officerCountBadge');
+
+    const fullDataTableBody = document.getElementById('fullDataTableBody');
+    const txtFilterTable = document.getElementById('txtFilterTable');
+    const lblTableCounter = document.getElementById('lblTableCounter');
+
+    const btnOpenConfig = document.getElementById('btnOpenConfig');
+    const btnCloseConfig = document.getElementById('btnCloseConfig');
+    const configModal = document.getElementById('configModal');
+    const btnSaveConfig = document.getElementById('btnSaveConfig');
+    const cfgWebAppUrl = document.getElementById('cfgWebAppUrl');
+    const btnCopyScript = document.getElementById('btnCopyScript');
+    const btnResetDemo = document.getElementById('btnResetDemo');
+    const btnSyncNow = document.getElementById('btnSyncNow');
+    const syncIcon = document.getElementById('syncIcon');
+
+    /**
+     * Calculate and refresh totals, officer breakdown, and KPIs
+     */
+    function renderDashboardMetrics() {
+      // Aggregate Totals
+      let countTotal = recordsData.length;
+      let countMediation = 0;
+      let countNonSettlement = 0;
+      let countStatementReq = 0;
+      let countLegally = 0;
+      let countPendingMediation = 0;
+      let countPendingLegally = 0;
+      let countLodReq = 0;
+
+      // Map for officer-level counts
+      const officerMap = {};
+
+      recordsData.forEach(item => {
+        const off = item.officer ? item.officer.trim() : "Unassigned";
+        if (!officerMap[off]) {
+          officerMap[off] = {
+            officer: off,
+            totalCases: 0,
+            mediation: 0,
+            nonSettlement: 0,
+            statementReq: 0,
+            legally: 0,
+            pendingMediation: 0,
+            pendingLegally: 0,
+            lodReq: 0
+          };
+        }
+
+        officerMap[off].totalCases++;
+
+        if (item.mediationDate) { countMediation++; officerMap[off].mediation++; }
+        if (item.nonSettlementDate) { countNonSettlement++; officerMap[off].nonSettlement++; }
+        if (item.statementReqDate) { countStatementReq++; officerMap[off].statementReq++; }
+        if (item.legallyDate) { countLegally++; officerMap[off].legally++; }
+        if (item.pendingMediationDate) { countPendingMediation++; officerMap[off].pendingMediation++; }
+        if (item.pendingLegallyDate) { countPendingLegally++; officerMap[off].pendingLegally++; }
+        if (item.lodReqDate) { countLodReq++; officerMap[off].lodReq++; }
+      });
+
+      // Update KPI widgets
+      document.getElementById('statTotalAccounts').textContent = countTotal;
+      document.getElementById('kpiMediation').textContent = countMediation;
+      document.getElementById('kpiNonSettlement').textContent = countNonSettlement;
+      document.getElementById('kpiStatementReq').textContent = countStatementReq;
+      document.getElementById('kpiLegally').textContent = countLegally;
+      document.getElementById('kpiPendingMediation').textContent = countPendingMediation;
+      document.getElementById('kpiPendingLegally').textContent = countPendingLegally;
+
+      // Update Officer Dropdown Filter options
+      const activeOfficerKeys = Object.keys(officerMap).sort();
+      const currentSelection = officerFilter.value;
+      officerFilter.innerHTML = '<option value="ALL">All Officers (සියලු නිලධාරීන්)</option>';
+      activeOfficerKeys.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === currentSelection) opt.selected = true;
+        officerFilter.appendChild(opt);
+      });
+
+      officerCountBadge.textContent = `Active Officers: ${activeOfficerKeys.length}`;
+
+      // Render Officer Breakdown Table Rows
+      renderOfficerTable(officerMap, officerFilter.value);
+
+      // Render Chart
+      renderChart(countMediation, countNonSettlement, countStatementReq, countLegally, countPendingMediation, countPendingLegally, countLodReq);
+
+      // Render Accounts Table
+      renderAccountsTable();
+    }
+
+    function renderOfficerTable(officerMap, filterVal) {
+      officersTableBody.innerHTML = '';
+      const officersList = Object.values(officerMap);
+
+      const filtered = (filterVal === 'ALL') 
+        ? officersList 
+        : officersList.filter(o => o.officer === filterVal);
+
+      if (filtered.length === 0) {
+        officersTableBody.innerHTML = `<tr><td colspan="9" class="py-4 text-center text-slate-400">කිසිදු දත්තයක් හමු නොවීය.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-800 flex items-center space-x-2">
+            <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-[10px]">
+              ${o.officer.charAt(0)}
+            </span>
+            <span class="truncate max-w-[150px] sm:max-w-none">${o.officer}</span>
+          </td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.mediation > 0 ? 'bg-amber-100 text-amber-800' : 'text-slate-300'}">${o.mediation}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.nonSettlement > 0 ? 'bg-rose-100 text-rose-800' : 'text-slate-300'}">${o.nonSettlement}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.statementReq > 0 ? 'bg-blue-100 text-blue-800' : 'text-slate-300'}">${o.statementReq}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.legally > 0 ? 'bg-purple-100 text-purple-800' : 'text-slate-300'}">${o.legally}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.pendingMediation > 0 ? 'bg-orange-100 text-orange-800' : 'text-slate-300'}">${o.pendingMediation}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.pendingLegally > 0 ? 'bg-pink-100 text-pink-800' : 'text-slate-300'}">${o.pendingLegally}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="badge-count px-2 py-0.5 rounded-full font-bold text-xs ${o.lodReq > 0 ? 'bg-teal-100 text-teal-800' : 'text-slate-300'}">${o.lodReq}</span></td>
+          <td class="py-2.5 px-3 text-center font-bold text-slate-800 bg-slate-50/80">${o.totalCases}</td>
+        `;
+        officersTableBody.appendChild(tr);
+      });
+    }
+
+    function renderChart(mediation, nonSetl, stmtReq, legally, pendMed, pendLeg, lodReq) {
+      const ctx = document.getElementById('statusChart').getContext('2d');
+      if (statusChartInstance) {
+        statusChartInstance.destroy();
+      }
+
+      statusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [
+            'Mediation Bord',
+            'Non Settlement',
+            'Statement Req',
+            'Legally',
+            'Pending Mediation',
+            'Pending Legally',
+            'LOD Req'
+          ],
+          datasets: [{
+            data: [mediation, nonSetl, stmtReq, legally, pendMed, pendLeg, lodReq],
+            backgroundColor: [
+              '#f59e0b', // Amber
+              '#f43f5e', // Rose
+              '#3b82f6', // Blue
+              '#a855f7', // Purple
+              '#fb923c', // Orange
+              '#ec4899', // Pink
+              '#14b8a6'  // Teal
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                padding: 10,
+                font: {
+                  size: 10,
+                  family: 'Inter'
+                }
+              }
+            }
+          },
+          cutout: '62%'
+        }
+      });
+    }
+
+    function renderAccountsTable() {
+      fullDataTableBody.innerHTML = '';
+      const filterText = (txtFilterTable.value || "").trim().toLowerCase();
+
+      const matched = recordsData.filter(r => {
+        if (!filterText) return true;
+        return (
+          (r.accountNo && r.accountNo.toLowerCase().includes(filterText)) ||
+          (r.nic && r.nic.toLowerCase().includes(filterText)) ||
+          (r.customerName && r.customerName.toLowerCase().includes(filterText)) ||
+          (r.officer && r.officer.toLowerCase().includes(filterText))
+        );
+      });
+
+      lblTableCounter.textContent = `Showing ${matched.length} of ${recordsData.length} records`;
+
+      if (matched.length === 0) {
+        fullDataTableBody.innerHTML = `<tr><td colspan="12" class="py-5 text-center text-slate-400">ගැලපෙන කිසිදු ගිණුම් වාර්තාවක් හමු නොවීය.</td></tr>`;
+        return;
+      }
+
+      matched.forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-sky-50/40 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-mono font-bold text-sky-700">${rec.accountNo}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-700">${rec.nic || '-'}</td>
+          <td class="py-2.5 px-4 font-semibold text-slate-900">${rec.customerName}</td>
+          <td class="py-2.5 px-3 text-slate-600 font-medium">${rec.officer}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.mediationDate, 'amber')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.nonSettlementDate, 'rose')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.statementReqDate, 'blue')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.legallyDate, 'purple')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.pendingMediationDate, 'orange')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.pendingLegallyDate, 'pink')}</td>
+          <td class="py-2.5 px-2 text-center">${formatDateBadge(rec.lodReqDate, 'teal')}</td>
+          <td class="py-2.5 px-3 text-right">
+            <button onclick="handleDirectSelect('${rec.accountNo}')" class="px-2.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded font-semibold text-[11px] transition">
+              Edit Dates
+            </button>
+          </td>
+        `;
+        fullDataTableBody.appendChild(tr);
+      });
+    }
+
+    function formatDateBadge(dateStr, colorTheme) {
+      if (!dateStr) return '<span class="text-slate-300">-</span>';
+      return `<span class="inline-block bg-${colorTheme}-50 text-${colorTheme}-700 border border-${colorTheme}-200 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium">${dateStr}</span>`;
+    }
+
+    // Helper function to find a record using fuzzy & normalized matching
+    function findMatchingRecord(query) {
+      if (!query) return null;
+      const qRaw = String(query).trim().toLowerCase();
+      // Remove all spaces, hyphens, slashes for relaxed comparison
+      const qClean = qRaw.replace(/[^a-z0-9]/gi, '');
+
+      // 1. Exact match (Account No or NIC)
+      let matched = recordsData.find(r => 
+        (r.accountNo && String(r.accountNo).trim().toLowerCase() === qRaw) ||
+        (r.nic && String(r.nic).trim().toLowerCase() === qRaw)
+      );
+      if (matched) return matched;
+
+      // 2. Normalized match (ignores hyphens, spaces, e.g. "LN-2023-0101" vs "LN20230101")
+      if (qClean.length >= 2) {
+        matched = recordsData.find(r => {
+          const accClean = String(r.accountNo || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          const nicClean = String(r.nic || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          return accClean === qClean || nicClean === qClean;
+        });
+        if (matched) return matched;
+      }
+
+      // 3. Partial / Contains match on Account, NIC or Customer Name
+      matched = recordsData.find(r => 
+        (r.accountNo && String(r.accountNo).toLowerCase().includes(qRaw)) ||
+        (r.nic && String(r.nic).toLowerCase().includes(qRaw)) ||
+        (r.customerName && String(r.customerName).toLowerCase().includes(qRaw))
+      );
+      if (matched) return matched;
+
+      // 4. Substring match on cleaned numbers (e.g. typing just "0101" or digits)
+      if (qClean.length >= 3) {
+        matched = recordsData.find(r => {
+          const accClean = String(r.accountNo || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          const nicClean = String(r.nic || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+          return accClean.includes(qClean) || nicClean.includes(qClean);
+        });
+        if (matched) return matched;
+      }
+
+      return null;
+    }
+
+    // Handle Auto-suggest on search input typing
+    txtSearchInput.addEventListener('input', (e) => {
+      const qRaw = e.target.value.trim().toLowerCase();
+      const qClean = qRaw.replace(/[^a-z0-9]/gi, '');
+      if (!qRaw || qRaw.length < 2) {
+        searchSuggestions.classList.add('hidden');
+        searchSuggestions.innerHTML = '';
+        return;
+      }
+
+      const matches = recordsData.filter(r => {
+        const acc = String(r.accountNo || '').toLowerCase();
+        const nic = String(r.nic || '').toLowerCase();
+        const name = String(r.customerName || '').toLowerCase();
+        const accClean = acc.replace(/[^a-z0-9]/gi, '');
+        const nicClean = nic.replace(/[^a-z0-9]/gi, '');
+
+        return acc.includes(qRaw) || 
+               nic.includes(qRaw) || 
+               name.includes(qRaw) || 
+               (qClean.length >= 2 && (accClean.includes(qClean) || nicClean.includes(qClean)));
+      }).slice(0, 6);
+
+      if (matches.length === 0) {
+        searchSuggestions.innerHTML = `<div class="p-3 text-xs text-slate-400 text-center">සොයාගැනීමට නොහැකි විය (No matching records found)</div>`;
+        searchSuggestions.classList.remove('hidden');
+        return;
+      }
+
+      searchSuggestions.innerHTML = matches.map(item => `
+        <div 
+          onclick="handleDirectSelect('${item.accountNo}')"
+          class="p-3 hover:bg-sky-50 cursor-pointer transition flex items-center justify-between"
+        >
+          <div>
+            <div class="font-bold text-xs text-slate-900">${item.customerName}</div>
+            <div class="text-[11px] text-slate-500 font-mono">ACC: <span class="text-sky-700 font-semibold">${item.accountNo}</span> | NIC: <span>${item.nic || '-'}</span></div>
+          </div>
+          <span class="text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">${item.officer}</span>
+        </div>
+      `).join('');
+
+      searchSuggestions.classList.remove('hidden');
+    });
+
+    // Close suggestions on outside click
+    document.addEventListener('click', (e) => {
+      if (!txtSearchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+        searchSuggestions.classList.add('hidden');
+      }
+    });
+    const btnTestConnection = document.getElementById('btnTestConnection');
+    const testConnectionStatus = document.getElementById('testConnectionStatus');
+
+    // Dual-Sync Method: Uses GET with parameters or POST to completely eliminate CORS blockers
+    async function sendDataToGoogleSheet(record) {
+      if (!webAppUrl || !webAppUrl.startsWith("http")) {
+        throw new Error("Web App URL එක ලබා දී නොමැත.");
+      }
+
+      // Build Query String for GET-based foolproof sync
+      const params = new URLSearchParams({
+        action: 'update',
+        accountNo: record.accountNo || '',
+        nic: record.nic || '',
+        mediationDate: record.mediationDate || '',
+        nonSettlementDate: record.nonSettlementDate || '',
+        statementReqDate: record.statementReqDate || '',
+        legallyDate: record.legallyDate || '',
+        pendingMediationDate: record.pendingMediationDate || '',
+        pendingLegallyDate: record.pendingLegallyDate || '',
+        lodReqDate: record.lodReqDate || ''
+      });
+
+      const updateUrl = `${webAppUrl}?${params.toString()}`;
+
+      // Try GET method first (Apps Script handles GET 302 redirects with JSON output)
+      try {
+        const response = await fetch(updateUrl, { method: 'GET' });
+        const resJson = await response.json();
+        if (resJson && resJson.status === 'success') {
+          return resJson;
+        } else if (resJson && resJson.status === 'error') {
+          throw new Error(resJson.message);
+        }
+      } catch (err) {
+        // Fallback: Send via POST text/plain
+        await fetch(webAppUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            accountNo: record.accountNo,
+            nic: record.nic,
+            mediationDate: record.mediationDate,
+            nonSettlementDate: record.nonSettlementDate,
+            statementReqDate: record.statementReqDate,
+            legallyDate: record.legallyDate,
+            pendingMediationDate: record.pendingMediationDate,
+            pendingLegallyDate: record.pendingLegallyDate,
+            lodReqDate: record.lodReqDate
+          })
+        });
+      }
+
+      return { status: 'success' };
+    }
+
+    btnSaveRecord.addEventListener('click', async () => {
+      if (!selectedRecord) return;
+
+      // Extract new date values
+      selectedRecord.mediationDate = dateMediation.value;
+      selectedRecord.nonSettlementDate = dateNonSettlement.value;
+      selectedRecord.statementReqDate = dateStatementReq.value;
+      selectedRecord.legallyDate = dateLegally.value;
+      selectedRecord.pendingMediationDate = datePendingMediation.value;
+      selectedRecord.pendingLegallyDate = datePendingLegally.value;
+      selectedRecord.lodReqDate = dateLodReq.value;
+
+      // Update in memory & refresh dashboard metrics
+      renderDashboardMetrics();
+
+      if (webAppUrl && webAppUrl.startsWith("http")) {
+        btnSaveRecord.disabled = true;
+        btnSaveRecord.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Syncing to Sheet...`;
+
+        try {
+          await sendDataToGoogleSheet(selectedRecord);
+          showSaveNotification(`සාර්ථකයි! ${selectedRecord.accountNo} (${selectedRecord.customerName}) සඳහා දින Google Sheet එකේ සාර්ථකව Update විය.`, "emerald");
+        } catch (err) {
+          showSaveNotification(`දින Dashboard එකේ සටහන් විය. නමුත් Google Sheet එකට Update වීමේ දෝෂයක්: ${err.message} (Apps Script එක "New version" ලෙස Deploy කර ඇත්දැයි බලන්න)`, "rose");
+        } finally {
+          btnSaveRecord.disabled = false;
+          btnSaveRecord.innerHTML = `<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Save to Sheet</span>`;
+        }
+      } else {
+        showSaveNotification(`සාර්ථකයි! දින දත්ත Dashboard එක තුළ යාවත්කාලීන කරන ලදී. (Google Sheet සෘජු Sync සක්‍රිය කිරීමට ඉහළ "Google Sheet Setup" මඟින් Web App URL එක ලබා දෙන්න)`, "emerald");
+      }
+    });
+
+    // Test Connection Button in Configuration Modal
+    btnTestConnection.addEventListener('click', async () => {
+      const url = cfgWebAppUrl.value.trim();
+      testConnectionStatus.classList.remove('hidden');
+
+      if (!url || !url.startsWith("http")) {
+        testConnectionStatus.className = "mt-3 p-3 rounded-lg text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200";
+        testConnectionStatus.textContent = "කරුණාකර නිවැරදි Web App URL එකක් ඇතුළත් කරන්න (උදා: https://script.google.com/macros/s/.../exec)";
+        return;
+      }
+
+      btnTestConnection.disabled = true;
+      btnTestConnection.textContent = "Testing...";
+      testConnectionStatus.className = "mt-3 p-3 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200";
+      testConnectionStatus.textContent = "Google Sheet එකට සම්බන්ධ වෙමින් පවතී...";
+
+      try {
+        const testUrl = url.includes('?') ? `${url}&action=test` : `${url}?action=test`;
+        const res = await fetch(testUrl);
+        const data = await res.json();
+
+        if (data && data.status === 'success') {
+          testConnectionStatus.className = "mt-3 p-3 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200";
+          testConnectionStatus.innerHTML = `✓ සාර්ථකව සම්බන්ධ විය! (Sheet: <b>${data.sheetName}</b> | Records: <b>${data.rowsCount}</b>)`;
+          webAppUrl = url;
+        } else {
+          throw new Error(data.message || "Unknown error");
+        }
+      } catch (err) {
+        testConnectionStatus.className = "mt-3 p-3 rounded-lg text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200";
+        testConnectionStatus.innerHTML = `✕ සම්බන්ධ වීමට නොහැකි විය: <b>${err.message}</b>.<br><span class="text-[11px] text-rose-600 mt-1 block">කරුණාකර Apps Script එකෙහි Deploy කරන විට <b>"Who has access: Anyone"</b> දී ඇත්දැයි සහ <b>"New version"</b> තෝරා Deploy කළාදැයි තහවුරු කරගන්න.</span>`;
+      } finally {
+        btnTestConnection.disabled = false;
+        btnTestConnection.textContent = "Test Connection";
+      }
+    });
+
+    btnSyncNow.addEventListener('click', async () => {
+      syncIcon.classList.add('animate-spin');
+      if (webAppUrl && webAppUrl.startsWith("http")) {
+        try {
+          const res = await fetch(webAppUrl);
+          const raw = await res.json();
+          if (Array.isArray(raw) && raw.length > 1) {
+            parseGoogleSheetRows(raw);
+            showSaveNotification("Google Sheet එකෙන් නවතම දත්ත සාර්ථකව Refresh විය!", "emerald");
+          } else {
+            showSaveNotification("Sheet එකෙන් දත්ත ලැබුණ නමුත් පේළි හමු නොවීය.", "amber");
+          }
+        } catch (e) {
+          showSaveNotification("Sheet එකෙන් දත්ත කියවීමේ දෝෂයක්: " + e.message, "rose");
+        }
+      } else {
+        setTimeout(() => {
+          renderDashboardMetrics();
+          showSaveNotification("දත්ත සමමුහුර්ත (Sync) කර යාවත්කාලීන කරන ලදී.", "sky");
+        }, 500);
+      }
+      setTimeout(() => syncIcon.classList.remove('animate-spin'), 600);
+    });
+
+    function parseGoogleSheetRows(rows) {
+      if (!rows || rows.length < 2) return;
+
+      // Identify header row dynamically (within the first 5 rows in case of top banner/titles)
+      let headerRowIndex = 0;
+      for (let r = 0; r < Math.min(rows.length, 5); r++) {
+        const rowStr = rows[r].map(c => String(c).toLowerCase()).join(' ');
+        if (rowStr.includes('acc') || rowStr.includes('loan') || rowStr.includes('nic') || rowStr.includes('officer')) {
+          headerRowIndex = r;
+          break;
+        }
+      }
+
+      const headers = rows[headerRowIndex].map(h => String(h).trim().toUpperCase());
+      
+      // Flexible matching for account & identifier headers
+      const accIdx = headers.findIndex(h => /loan.*acc|account|loan.*no|acc.*no|loan|a\/c|facility|contract/i.test(h));
+      const nicIdx = headers.findIndex(h => /nic|identity|id.*no/i.test(h));
+      const nameIdx = headers.findIndex(h => /name|customer|client|borrower/i.test(h));
+      const offIdx = headers.findIndex(h => /officer|ro|credit.*officer|staff/i.test(h));
+
+      const medIdx = headers.findIndex(h => h.includes('MEDIATION BORD') && !h.includes('PENDING'));
+      const nonIdx = headers.findIndex(h => h.includes('NON') || h.includes('SETELMENT') || h.includes('SETTLEMENT'));
+      const stmtIdx = headers.findIndex(h => h.includes('STETMENT') || h.includes('STATEMENT'));
+      const legIdx = headers.findIndex(h => h.includes('LEGALLY') && !h.includes('PENDING'));
+      const pendMedIdx = headers.findIndex(h => h.includes('PENDING') && h.includes('MEDIATION'));
+      const pendLegIdx = headers.findIndex(h => h.includes('PENDING') && h.includes('LEGALLY'));
+      const lodIdx = headers.findIndex(h => h.includes('LOD'));
+
+      const parsed = [];
+      for (let i = headerRowIndex + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+        const acc = accIdx !== -1 && r[accIdx] !== undefined ? String(r[accIdx]).trim() : `ACC-${i}`;
+        if (!acc || acc === '') continue;
+
+        parsed.push({
+          accountNo: acc,
+          nic: nicIdx !== -1 && r[nicIdx] !== undefined ? String(r[nicIdx]).trim() : "",
+          customerName: nameIdx !== -1 && r[nameIdx] !== undefined ? String(r[nameIdx]).trim() : `Customer ${i}`,
+          officer: offIdx !== -1 && r[offIdx] !== undefined ? String(r[offIdx]).trim() : "Unassigned",
+          mediationDate: medIdx !== -1 && r[medIdx] ? formatDate(r[medIdx]) : "",
+          nonSettlementDate: nonIdx !== -1 && r[nonIdx] ? formatDate(r[nonIdx]) : "",
+          statementReqDate: stmtIdx !== -1 && r[stmtIdx] ? formatDate(r[stmtIdx]) : "",
+          legallyDate: legIdx !== -1 && r[legIdx] ? formatDate(r[legIdx]) : "",
+          pendingMediationDate: pendMedIdx !== -1 && r[pendMedIdx] ? formatDate(r[pendMedIdx]) : "",
+          pendingLegallyDate: pendLegIdx !== -1 && r[pendLegIdx] ? formatDate(r[pendLegIdx]) : "",
+          lodReqDate: lodIdx !== -1 && r[lodIdx] ? formatDate(r[lodIdx]) : ""
+        });
+      }
+
+      if (parsed.length > 0) {
+        recordsData = parsed;
+        renderDashboardMetrics();
+      }
+    }
+
+    function formatDate(val) {
+      if (!val) return "";
+      if (typeof val === 'string' && val.includes('T')) {
+        return val.split('T')[0];
+      }
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+      }
+      return String(val);
+    }
+
+    // Modal Events
+    btnOpenConfig.addEventListener('click', () => configModal.classList.remove('hidden'));
+    btnCloseConfig.addEventListener('click', () => configModal.classList.add('hidden'));
+
+    btnSaveConfig.addEventListener('click', () => {
+      webAppUrl = cfgWebAppUrl.value.trim();
+      configModal.classList.add('hidden');
+      if (webAppUrl) {
+        btnSyncNow.click();
+      }
+    });
+
+    btnResetDemo.addEventListener('click', () => {
+      recordsData = JSON.parse(JSON.stringify(INITIAL_RECORDS));
+      renderDashboardMetrics();
+      configModal.classList.add('hidden');
+    });
+
+    btnCopyScript.addEventListener('click', () => {
+      const codeText = document.getElementById('scriptCodeBlock').innerText;
+      const dummy = document.createElement('textarea');
+      dummy.value = codeText;
+      document.body.appendChild(dummy);
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      btnCopyScript.innerHTML = `<span class="text-emerald-600 font-bold">Copied!</span>`;
+      setTimeout(() => {
+        btnCopyScript.innerHTML = `<svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy Code`;
+      }, 2000);
+    });
+
+    window.onload = function() {
+      renderDashboardMetrics();
+    };
+  </script>
+</body>
+</html>
